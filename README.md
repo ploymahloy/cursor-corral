@@ -1,4 +1,5 @@
 # Cursor Corral
+<img width="1024" height="1024" alt="Image" src="https://github.com/user-attachments/assets/bdec0b6d-8912-4dd4-ac75-4b2fe2f5948b" />
 
 **Lasso the cursors, rule the ranch.**
 
