@@ -1,0 +1,10 @@
+{
+  "name": "cursor-corral",
+  "version": "1.0.0",
+  "description": "Browser game where a cursor rancher corrals cursor cows",
+  "main": "index.ts",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
