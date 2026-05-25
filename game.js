@@ -7,6 +7,7 @@ const LASSO_CURSOR = "url('assets/png/lasso.png') 16 16, pointer";
 const LASSO_THROW_MS = 280;
 const LASSO_RETRACT_MS = 320;
 const LASSO_RETRACT_WITH_COW_MS = LASSO_RETRACT_MS * 1.7;
+const STEP_INTERVAL_MS = 500;
 
 const LASSO_PHASE = {
 	IDLE: 'idle',
@@ -36,6 +37,9 @@ lassoThrowSound.preload = 'auto';
 const cowMooStressedSound = new Audio('assets/mp3/cow_moo_stressed.mp3');
 cowMooStressedSound.preload = 'auto';
 
+const stepSound = new Audio('assets/mp3/step.mp3');
+stepSound.preload = 'auto';
+
 // --- State ---
 const heldKeys = new Set();
 
@@ -43,6 +47,7 @@ let rancherX = 0;
 let rancherY = 0;
 let rancherPositionInitialized = false;
 let previousFrameTimeMs = performance.now();
+let stepElapsedMs = STEP_INTERVAL_MS;
 const cows = [];
 
 const lasso = {
@@ -63,6 +68,19 @@ function playSound(audio) {
 
 function playCowMooStressed() {
 	playSound(cowMooStressedSound);
+}
+
+function updateStepSounds(elapsedSeconds, isMoving) {
+	if (!isMoving) {
+		stepElapsedMs = STEP_INTERVAL_MS;
+		return;
+	}
+
+	stepElapsedMs += elapsedSeconds * 1000;
+	while (stepElapsedMs >= STEP_INTERVAL_MS) {
+		playSound(stepSound);
+		stepElapsedMs -= STEP_INTERVAL_MS;
+	}
 }
 
 // --- Layout ---
@@ -491,11 +509,15 @@ function gameLoop(frameTimeMs) {
 
 	if (lasso.phase === LASSO_PHASE.IDLE) {
 		const { dx, dy } = getMovementDirection();
-		if (dx !== 0 || dy !== 0) {
+		const isMoving = dx !== 0 || dy !== 0;
+		updateStepSounds(elapsedSeconds, isMoving);
+		if (isMoving) {
 			const directionLength = Math.hypot(dx, dy);
 			rancherX += (dx / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
 			rancherY += (dy / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
 		}
+	} else {
+		updateStepSounds(elapsedSeconds, false);
 	}
 
 	updateLasso(elapsedSeconds);
