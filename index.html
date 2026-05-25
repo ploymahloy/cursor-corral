@@ -16,9 +16,6 @@
 				display: block;
 				width: 100vw;
 				height: 100vh;
-				cursor:
-					url('assets/png/lasso.png') 16 16,
-					pointer;
 			}
 		</style>
 	</head>
@@ -28,17 +25,24 @@
 			const canvas = document.getElementById('canvas');
 			const ctx = canvas.getContext('2d');
 
+			// Constants
 			const RANCHER_SPEED_PX_PER_SECOND = 100;
 			const COW_SPEED_PX_PER_SECOND = 5;
 			const COWS_COUNT = 15;
+			const LASSO_CURSOR = "url('assets/png/lasso.png') 16 16, pointer";
+			const LASSO_THROW_MS = 280;
+			const LASSO_RETRACT_MS = 320;
+
 			const heldKeys = new Set();
 
+			// Characters
 			const rancher = new Image();
 			rancher.src = 'assets/png/rancher.png';
 
 			const cowImage = new Image();
 			cowImage.src = 'assets/png/cow.png';
 
+			// Sounds / Actions
 			const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
 			lassoThrowSound.preload = 'auto';
 
@@ -47,6 +51,15 @@
 			let rancherPositionInitialized = false;
 			let previousFrameTimeMs = performance.now();
 			const cows = [];
+
+			const lasso = {
+				phase: 'idle',
+				targetX: 0,
+				targetY: 0,
+				elapsedMs: 0
+			};
+
+			canvas.style.cursor = LASSO_CURSOR;
 
 			function getTargetCowCount() {
 				const canvasAreaSquarePixels = canvas.width * canvas.height;
@@ -140,17 +153,102 @@
 				return { dx, dy };
 			}
 
+			function getRancherOrigin() {
+				const width = rancher.width || 48;
+				const height = rancher.height || 48;
+				return {
+					originX: rancherX + width / 2,
+					originY: rancherY + height / 2
+				};
+			}
+
+			function getLassoEndPoint() {
+				const { originX, originY } = getRancherOrigin();
+				if (lasso.phase === 'idle') {
+					return { originX, originY, endX: originX, endY: originY };
+				}
+
+				let t;
+				if (lasso.phase === 'extending') {
+					t = Math.min(1, lasso.elapsedMs / LASSO_THROW_MS);
+				} else {
+					t = 1 - Math.min(1, lasso.elapsedMs / LASSO_RETRACT_MS);
+				}
+
+				return {
+					originX,
+					originY,
+					endX: originX + (lasso.targetX - originX) * t,
+					endY: originY + (lasso.targetY - originY) * t
+				};
+			}
+
+			function updateLasso(elapsedSeconds) {
+				if (lasso.phase === 'idle') {
+					return;
+				}
+
+				lasso.elapsedMs += elapsedSeconds * 1000;
+
+				if (lasso.phase === 'extending') {
+					if (lasso.elapsedMs >= LASSO_THROW_MS) {
+						lasso.phase = 'retracting';
+						lasso.elapsedMs = 0;
+					}
+					return;
+				}
+
+				if (lasso.elapsedMs >= LASSO_RETRACT_MS) {
+					lasso.phase = 'idle';
+					lasso.elapsedMs = 0;
+					canvas.style.cursor = LASSO_CURSOR;
+				}
+			}
+
+			function drawLasso() {
+				if (lasso.phase === 'idle') {
+					return;
+				}
+
+				const { originX, originY, endX, endY } = getLassoEndPoint();
+				ctx.beginPath();
+				ctx.moveTo(originX, originY);
+				ctx.lineTo(endX, endY);
+				ctx.strokeStyle = '#6B4423';
+				ctx.lineWidth = 2;
+				ctx.lineCap = 'round';
+				ctx.stroke();
+			}
+
+			function startLassoThrow(targetX, targetY) {
+				if (lasso.phase !== 'idle') {
+					return;
+				}
+
+				lasso.phase = 'extending';
+				lasso.targetX = targetX;
+				lasso.targetY = targetY;
+				lasso.elapsedMs = 0;
+				canvas.style.cursor = 'none';
+
+				lassoThrowSound.currentTime = 0;
+				lassoThrowSound.play().catch(() => {});
+			}
+
 			function gameLoop(frameTimeMs) {
 				const elapsedSeconds = (frameTimeMs - previousFrameTimeMs) / 1000;
 				previousFrameTimeMs = frameTimeMs;
 
-				const { dx, dy } = getMovementDirection();
-				if (dx !== 0 || dy !== 0) {
-					const directionLength = Math.hypot(dx, dy);
-					rancherX += (dx / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
-					rancherY += (dy / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
+				if (lasso.phase === 'idle') {
+					const { dx, dy } = getMovementDirection();
+					if (dx !== 0 || dy !== 0) {
+						const directionLength = Math.hypot(dx, dy);
+						rancherX += (dx / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
+						rancherY += (dy / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
+					}
 				}
 
+				updateLasso(elapsedSeconds);
 				updateCows(elapsedSeconds);
 
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -158,6 +256,7 @@
 				if (rancher.complete) {
 					ctx.drawImage(rancher, rancherX, rancherY);
 				}
+				drawLasso();
 
 				requestAnimationFrame(gameLoop);
 			}
@@ -165,9 +264,8 @@
 			window.addEventListener('resize', resizeCanvas);
 			resizeCanvas();
 
-			canvas.addEventListener('click', () => {
-				lassoThrowSound.currentTime = 0;
-				lassoThrowSound.play().catch(() => {});
+			canvas.addEventListener('click', event => {
+				startLassoThrow(event.offsetX, event.offsetY);
 			});
 
 			window.addEventListener('keydown', event => {
