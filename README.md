@@ -7,7 +7,7 @@ A browser game where you play a cursor rancher rounding up wild cursor “cows�
 
 ## Status
 
-This repo is **early and conceptual**. There is no playable build yet: no game loop, no bundler setup, and no `index.ts` implementation. What exists today is the idea, promo art, and a few SVG assets under `assets/svg/`.
+This repo is **early and conceptual**. There is no playable build yet: no game loop, no bundler setup, and no `index.ts` implementation. What exists today is the idea, promo art, and PNG game assets under `assets/png/`.
 
 ## Concept
 
@@ -19,12 +19,12 @@ Details (controls, scoring, multiplayer, etc.) are still open.
 
 ## Assets
 
-| File                     | Role              |
-| ------------------------ | ----------------- |
-| `assets/svg/rancher.svg` | Rancher character |
-| `assets/svg/cow.svg`     | Cursor cow        |
-| `assets/svg/lasso.svg`   | Lasso             |
-| `assets/svg/fence.svg`   | Corral fence      |
+| File                     | Size    | Role              |
+| ------------------------ | ------- | ----------------- |
+| `assets/png/rancher.png` | 48×48   | Rancher character |
+| `assets/png/cow.png`     | 32×32   | Cursor cow        |
+| `assets/png/lasso.png`   | 32×32   | Lasso (cursor)    |
+| `assets/png/fence.png`   | 32×32   | Corral fence      |
 
 ## License
 
