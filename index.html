@@ -29,19 +29,99 @@
 			const ctx = canvas.getContext('2d');
 
 			const RANCHER_SPEED_PX_PER_SECOND = 100;
+			const COW_SPEED_PX_PER_SECOND = 5;
+			const COWS_PER_1000_SQUARE_PIXELS = 1;
+			const COW_SPAWN_AREA_DIVISOR = 10000;
 			const heldKeys = new Set();
 
 			const rancher = new Image();
 			rancher.src = 'assets/png/rancher.png';
 
+			const cowImage = new Image();
+			cowImage.src = 'assets/png/cow.png';
+
 			let rancherX = 0;
 			let rancherY = 0;
 			let rancherPositionInitialized = false;
 			let previousFrameTimeMs = performance.now();
+			const cows = [];
+
+			function getTargetCowCount() {
+				const canvasAreaSquarePixels = canvas.width * canvas.height;
+				return Math.floor((canvasAreaSquarePixels / COW_SPAWN_AREA_DIVISOR) * COWS_PER_1000_SQUARE_PIXELS);
+			}
+
+			function randomUnitDirection() {
+				const angleRadians = Math.random() * Math.PI * 2;
+				return {
+					directionX: Math.cos(angleRadians),
+					directionY: Math.sin(angleRadians)
+				};
+			}
+
+			function createCow() {
+				const cowWidth = cowImage.width || 32;
+				const cowHeight = cowImage.height || 32;
+				const maxX = Math.max(0, canvas.width - cowWidth);
+				const maxY = Math.max(0, canvas.height - cowHeight);
+				const { directionX, directionY } = randomUnitDirection();
+				return {
+					x: Math.random() * maxX,
+					y: Math.random() * maxY,
+					directionX,
+					directionY
+				};
+			}
+
+			function syncCowCount() {
+				const targetCowCount = getTargetCowCount();
+				while (cows.length < targetCowCount) {
+					cows.push(createCow());
+				}
+				cows.length = targetCowCount;
+			}
 
 			function resizeCanvas() {
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
+				if (cowImage.complete) {
+					syncCowCount();
+				}
+			}
+
+			function updateCows(elapsedSeconds) {
+				const cowWidth = cowImage.width;
+				const cowHeight = cowImage.height;
+
+				for (const cow of cows) {
+					cow.x += cow.directionX * COW_SPEED_PX_PER_SECOND * elapsedSeconds;
+					cow.y += cow.directionY * COW_SPEED_PX_PER_SECOND * elapsedSeconds;
+
+					if (cow.x <= 0) {
+						cow.x = 0;
+						cow.directionX = Math.abs(cow.directionX);
+					} else if (cow.x >= canvas.width - cowWidth) {
+						cow.x = canvas.width - cowWidth;
+						cow.directionX = -Math.abs(cow.directionX);
+					}
+
+					if (cow.y <= 0) {
+						cow.y = 0;
+						cow.directionY = Math.abs(cow.directionY);
+					} else if (cow.y >= canvas.height - cowHeight) {
+						cow.y = canvas.height - cowHeight;
+						cow.directionY = -Math.abs(cow.directionY);
+					}
+				}
+			}
+
+			function drawCows() {
+				if (!cowImage.complete) {
+					return;
+				}
+				for (const cow of cows) {
+					ctx.drawImage(cowImage, cow.x, cow.y);
+				}
 			}
 
 			function centerRancher() {
@@ -70,7 +150,10 @@
 					rancherY += (dy / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
 				}
 
+				updateCows(elapsedSeconds);
+
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				drawCows();
 				if (rancher.complete) {
 					ctx.drawImage(rancher, rancherX, rancherY);
 				}
@@ -106,6 +189,14 @@
 			if (rancher.complete) {
 				centerRancher();
 				rancherPositionInitialized = true;
+			}
+
+			cowImage.onload = () => {
+				syncCowCount();
+			};
+
+			if (cowImage.complete) {
+				syncCowCount();
 			}
 
 			requestAnimationFrame(gameLoop);
