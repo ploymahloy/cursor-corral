@@ -116,6 +116,76 @@
 				return null;
 			}
 
+			function segmentCowHitT(originX, originY, targetX, targetY, cow, maxT) {
+				const { cowWidth, cowHeight } = getCowDimensions();
+				const left = cow.x;
+				const top = cow.y;
+				const right = cow.x + cowWidth;
+				const bottom = cow.y + cowHeight;
+
+				const dx = targetX - originX;
+				const dy = targetY - originY;
+				let tMin = 0;
+				let tMax = maxT;
+
+				const origin = [originX, originY];
+				const delta = [dx, dy];
+				const bounds = [
+					[left, right],
+					[top, bottom]
+				];
+
+				for (let i = 0; i < 2; i++) {
+					if (delta[i] === 0) {
+						if (origin[i] < bounds[i][0] || origin[i] > bounds[i][1]) {
+							return null;
+						}
+					} else {
+						let tEnter = (bounds[i][0] - origin[i]) / delta[i];
+						let tExit = (bounds[i][1] - origin[i]) / delta[i];
+						if (tEnter > tExit) {
+							const swap = tEnter;
+							tEnter = tExit;
+							tExit = swap;
+						}
+						tMin = Math.max(tMin, tEnter);
+						tMax = Math.min(tMax, tExit);
+						if (tMin > tMax) {
+							return null;
+						}
+					}
+				}
+
+				return tMin >= 0 && tMin <= maxT ? tMin : null;
+			}
+
+			function findFirstCowAlongPath(originX, originY, targetX, targetY, maxT) {
+				let bestCow = null;
+				let bestT = Infinity;
+
+				for (const cow of cows) {
+					const t = segmentCowHitT(originX, originY, targetX, targetY, cow, maxT);
+					if (t !== null && t < bestT) {
+						bestT = t;
+						bestCow = cow;
+					}
+				}
+
+				if (!bestCow) {
+					return null;
+				}
+
+				return { cow: bestCow, t: bestT };
+			}
+
+			function stopLassoOnCowHit(originX, originY, hit) {
+				lasso.targetX = originX + (lasso.targetX - originX) * hit.t;
+				lasso.targetY = originY + (lasso.targetY - originY) * hit.t;
+				lasso.capturedCow = hit.cow;
+				lasso.phase = 'retracting';
+				lasso.elapsedMs = 0;
+			}
+
 			function resizeCanvas() {
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
@@ -212,6 +282,21 @@
 				lasso.elapsedMs += elapsedSeconds * 1000;
 
 				if (lasso.phase === 'extending') {
+					const { originX, originY } = getRancherOrigin();
+					const extendT = Math.min(1, lasso.elapsedMs / LASSO_THROW_MS);
+					const pathHit = findFirstCowAlongPath(
+						originX,
+						originY,
+						lasso.targetX,
+						lasso.targetY,
+						extendT
+					);
+
+					if (pathHit) {
+						stopLassoOnCowHit(originX, originY, pathHit);
+						return;
+					}
+
 					if (lasso.elapsedMs >= LASSO_THROW_MS) {
 						if (!lasso.capturedCow) {
 							lasso.capturedCow = findCowAtPoint(lasso.targetX, lasso.targetY);
