@@ -30,8 +30,7 @@
 
 			const RANCHER_SPEED_PX_PER_SECOND = 100;
 			const COW_SPEED_PX_PER_SECOND = 5;
-			const COWS_PER_1000_SQUARE_PIXELS = 1;
-			const COW_SPAWN_AREA_DIVISOR = 10000;
+			const COWS_COUNT = 15;
 			const heldKeys = new Set();
 
 			const rancher = new Image();
@@ -39,6 +38,9 @@
 
 			const cowImage = new Image();
 			cowImage.src = 'assets/png/cow.png';
+
+			const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
+			lassoThrowSound.preload = 'auto';
 
 			let rancherX = 0;
 			let rancherY = 0;
@@ -48,7 +50,7 @@
 
 			function getTargetCowCount() {
 				const canvasAreaSquarePixels = canvas.width * canvas.height;
-				return Math.floor((canvasAreaSquarePixels / COW_SPAWN_AREA_DIVISOR) * COWS_PER_1000_SQUARE_PIXELS);
+				return Math.floor(canvasAreaSquarePixels * COWS_PER_1000_SQUARE_PIXELS);
 			}
 
 			function randomUnitDirection() {
@@ -74,11 +76,10 @@
 			}
 
 			function syncCowCount() {
-				const targetCowCount = getTargetCowCount();
-				while (cows.length < targetCowCount) {
+				while (cows.length < COWS_COUNT) {
 					cows.push(createCow());
 				}
-				cows.length = targetCowCount;
+				cows.length = COWS_COUNT;
 			}
 
 			function resizeCanvas() {
@@ -163,6 +164,11 @@
 
 			window.addEventListener('resize', resizeCanvas);
 			resizeCanvas();
+
+			canvas.addEventListener('click', () => {
+				lassoThrowSound.currentTime = 0;
+				lassoThrowSound.play().catch(() => {});
+			});
 
 			window.addEventListener('keydown', event => {
 				const key = event.key.toLowerCase();
