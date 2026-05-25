@@ -29,10 +29,11 @@
 			const RANCHER_SPEED_PX_PER_SECOND = 100;
 			const COW_SPEED_PX_PER_SECOND = 5;
 			const COWS_COUNT = 15;
+			const CORRAL_HEIGHT_RATIO = 0.2;
 			const LASSO_CURSOR = "url('assets/png/lasso.png') 16 16, pointer";
 			const LASSO_THROW_MS = 280;
 			const LASSO_RETRACT_MS = 320;
-			const LASSO_RETRACT_WITH_COW_MS = LASSO_RETRACT_MS * 1.3;
+			const LASSO_RETRACT_WITH_COW_MS = LASSO_RETRACT_MS * 1.7;
 
 			const heldKeys = new Set();
 
@@ -42,6 +43,9 @@
 
 			const cowImage = new Image();
 			cowImage.src = 'assets/png/cow.png';
+
+			const fenceImage = new Image();
+			fenceImage.src = 'assets/png/fence.png';
 
 			// Sounds / Actions
 			const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
@@ -80,6 +84,18 @@
 
 			canvas.style.cursor = LASSO_CURSOR;
 
+			function getFenceHeight() {
+				return fenceImage.height || 32;
+			}
+
+			function getFenceTopY() {
+				return canvas.height * (1 - CORRAL_HEIGHT_RATIO);
+			}
+
+			function getCorralTopY() {
+				return getFenceTopY() + getFenceHeight();
+			}
+
 			function getTargetCowCount() {
 				const canvasAreaSquarePixels = canvas.width * canvas.height;
 				return Math.floor(canvasAreaSquarePixels * COWS_PER_1000_SQUARE_PIXELS);
@@ -97,14 +113,52 @@
 				const cowWidth = cowImage.width || 32;
 				const cowHeight = cowImage.height || 32;
 				const maxX = Math.max(0, canvas.width - cowWidth);
-				const maxY = Math.max(0, canvas.height - cowHeight);
+				const maxY = Math.max(0, getCorralTopY() - cowHeight);
 				const { directionX, directionY } = randomUnitDirection();
 				return {
 					x: Math.random() * maxX,
 					y: Math.random() * maxY,
 					directionX,
-					directionY
+					directionY,
+					captured: false
 				};
+			}
+
+			function releaseCowToCorral(cow) {
+				const { cowWidth, cowHeight } = getCowDimensions();
+				const corralTopY = getCorralTopY();
+				const maxX = Math.max(0, canvas.width - cowWidth);
+				const maxY = Math.max(0, canvas.height - corralTopY - cowHeight);
+				cow.captured = true;
+				cow.x = Math.random() * maxX;
+				cow.y = corralTopY + Math.random() * maxY;
+			}
+
+			function clampCowsToZones() {
+				const { cowWidth, cowHeight } = getCowDimensions();
+				const corralTopY = getCorralTopY();
+
+				for (const cow of cows) {
+					if (cow.x < 0) {
+						cow.x = 0;
+					} else if (cow.x > canvas.width - cowWidth) {
+						cow.x = canvas.width - cowWidth;
+					}
+
+					if (cow.captured) {
+						if (cow.y < corralTopY) {
+							cow.y = corralTopY;
+						} else if (cow.y > canvas.height - cowHeight) {
+							cow.y = canvas.height - cowHeight;
+						}
+					} else {
+						if (cow.y < 0) {
+							cow.y = 0;
+						} else if (cow.y > corralTopY - cowHeight) {
+							cow.y = corralTopY - cowHeight;
+						}
+					}
+				}
 			}
 
 			function seedInitialCows() {
@@ -127,6 +181,9 @@
 
 			function findCowAtPoint(x, y) {
 				for (let i = cows.length - 1; i >= 0; i--) {
+					if (cows[i].captured) {
+						continue;
+					}
 					if (isPointInCow(x, y, cows[i])) {
 						return cows[i];
 					}
@@ -182,6 +239,9 @@
 				let bestT = Infinity;
 
 				for (const cow of cows) {
+					if (cow.captured) {
+						continue;
+					}
 					const t = segmentCowHitT(originX, originY, targetX, targetY, cow, maxT);
 					if (t !== null && t < bestT) {
 						bestT = t;
@@ -207,11 +267,13 @@
 			function resizeCanvas() {
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
+				clampCowsToZones();
 			}
 
 			function updateCows(elapsedSeconds) {
 				const cowWidth = cowImage.width;
 				const cowHeight = cowImage.height;
+				const corralTopY = getCorralTopY();
 
 				for (const cow of cows) {
 					if (cow === lasso.capturedCow) {
@@ -228,22 +290,46 @@
 						cow.directionX = -Math.abs(cow.directionX);
 					}
 
-					if (cow.y <= 0) {
-						cow.y = 0;
-						cow.directionY = Math.abs(cow.directionY);
-					} else if (cow.y >= canvas.height - cowHeight) {
-						cow.y = canvas.height - cowHeight;
-						cow.directionY = -Math.abs(cow.directionY);
+					if (cow.captured) {
+						if (cow.y <= corralTopY) {
+							cow.y = corralTopY;
+							cow.directionY = Math.abs(cow.directionY);
+						} else if (cow.y >= canvas.height - cowHeight) {
+							cow.y = canvas.height - cowHeight;
+							cow.directionY = -Math.abs(cow.directionY);
+						}
+					} else {
+						if (cow.y <= 0) {
+							cow.y = 0;
+							cow.directionY = Math.abs(cow.directionY);
+						} else if (cow.y >= corralTopY - cowHeight) {
+							cow.y = corralTopY - cowHeight;
+							cow.directionY = -Math.abs(cow.directionY);
+						}
 					}
 				}
 			}
 
-			function drawCows() {
+			function drawCows(captured) {
 				if (!cowImage.complete) {
 					return;
 				}
 				for (const cow of cows) {
+					if (cow.captured !== captured) {
+						continue;
+					}
 					ctx.drawImage(cowImage, cow.x, cow.y);
+				}
+			}
+
+			function drawFence() {
+				if (!fenceImage.complete) {
+					return;
+				}
+				const fenceY = getFenceTopY();
+				const fenceWidth = fenceImage.width;
+				for (let x = 0; x < canvas.width; x += fenceWidth) {
+					ctx.drawImage(fenceImage, x, fenceY);
 				}
 			}
 
@@ -302,13 +388,7 @@
 				if (lasso.phase === 'extending') {
 					const { originX, originY } = getRancherOrigin();
 					const extendT = Math.min(1, lasso.elapsedMs / LASSO_THROW_MS);
-					const pathHit = findFirstCowAlongPath(
-						originX,
-						originY,
-						lasso.targetX,
-						lasso.targetY,
-						extendT
-					);
+					const pathHit = findFirstCowAlongPath(originX, originY, lasso.targetX, lasso.targetY, extendT);
 
 					if (pathHit) {
 						stopLassoOnCowHit(originX, originY, pathHit);
@@ -330,10 +410,7 @@
 
 				if (lasso.elapsedMs >= getLassoRetractMs()) {
 					if (lasso.capturedCow) {
-						const index = cows.indexOf(lasso.capturedCow);
-						if (index !== -1) {
-							cows.splice(index, 1);
-						}
+						releaseCowToCorral(lasso.capturedCow);
 						lasso.capturedCow = null;
 					}
 					lasso.phase = 'idle';
@@ -402,7 +479,9 @@
 				updateCows(elapsedSeconds);
 
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				drawCows();
+				drawCows(false);
+				drawCows(true);
+				drawFence();
 				if (rancher.complete) {
 					ctx.drawImage(rancher, rancherX, rancherY);
 				}
