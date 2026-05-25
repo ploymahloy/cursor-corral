@@ -32,6 +32,7 @@
 			const LASSO_CURSOR = "url('assets/png/lasso.png') 16 16, pointer";
 			const LASSO_THROW_MS = 280;
 			const LASSO_RETRACT_MS = 320;
+			const LASSO_RETRACT_WITH_COW_MS = LASSO_RETRACT_MS * 1.3;
 
 			const heldKeys = new Set();
 
@@ -45,6 +46,23 @@
 			// Sounds / Actions
 			const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
 			lassoThrowSound.preload = 'auto';
+
+			const cowMooStressedSound = new Audio('assets/mp3/cow_moo_stressed.mp3');
+			cowMooStressedSound.preload = 'auto';
+
+			function playCowMooStressed() {
+				cowMooStressedSound.currentTime = 0;
+				cowMooStressedSound.play().catch(() => {});
+			}
+
+			function getLassoRetractMs() {
+				return lasso.capturedCow ? LASSO_RETRACT_WITH_COW_MS : LASSO_RETRACT_MS;
+			}
+
+			function captureCow(cow) {
+				lasso.capturedCow = cow;
+				playCowMooStressed();
+			}
 
 			let rancherX = 0;
 			let rancherY = 0;
@@ -181,7 +199,7 @@
 			function stopLassoOnCowHit(originX, originY, hit) {
 				lasso.targetX = originX + (lasso.targetX - originX) * hit.t;
 				lasso.targetY = originY + (lasso.targetY - originY) * hit.t;
-				lasso.capturedCow = hit.cow;
+				captureCow(hit.cow);
 				lasso.phase = 'retracting';
 				lasso.elapsedMs = 0;
 			}
@@ -263,7 +281,7 @@
 				if (lasso.phase === 'extending') {
 					t = Math.min(1, lasso.elapsedMs / LASSO_THROW_MS);
 				} else {
-					t = 1 - Math.min(1, lasso.elapsedMs / LASSO_RETRACT_MS);
+					t = 1 - Math.min(1, lasso.elapsedMs / getLassoRetractMs());
 				}
 
 				return {
@@ -299,7 +317,10 @@
 
 					if (lasso.elapsedMs >= LASSO_THROW_MS) {
 						if (!lasso.capturedCow) {
-							lasso.capturedCow = findCowAtPoint(lasso.targetX, lasso.targetY);
+							const endpointCow = findCowAtPoint(lasso.targetX, lasso.targetY);
+							if (endpointCow) {
+								captureCow(endpointCow);
+							}
 						}
 						lasso.phase = 'retracting';
 						lasso.elapsedMs = 0;
@@ -307,7 +328,7 @@
 					return;
 				}
 
-				if (lasso.elapsedMs >= LASSO_RETRACT_MS) {
+				if (lasso.elapsedMs >= getLassoRetractMs()) {
 					if (lasso.capturedCow) {
 						const index = cows.indexOf(lasso.capturedCow);
 						if (index !== -1) {
