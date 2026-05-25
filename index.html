@@ -24,5 +24,91 @@
 	</head>
 	<body>
 		<canvas id="canvas"></canvas>
+		<script>
+			const canvas = document.getElementById('canvas');
+			const ctx = canvas.getContext('2d');
+
+			const RANCHER_SPEED_PX_PER_SECOND = 100;
+			const heldKeys = new Set();
+
+			const rancher = new Image();
+			rancher.src = 'assets/png/rancher.png';
+
+			let rancherX = 0;
+			let rancherY = 0;
+			let rancherPositionInitialized = false;
+			let previousFrameTimeMs = performance.now();
+
+			function resizeCanvas() {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+			}
+
+			function centerRancher() {
+				rancherX = canvas.width / 2 - rancher.width / 2;
+				rancherY = canvas.height / 2 - rancher.height / 2;
+			}
+
+			function getMovementDirection() {
+				let dx = 0;
+				let dy = 0;
+				if (heldKeys.has('w')) dy -= 1;
+				if (heldKeys.has('s')) dy += 1;
+				if (heldKeys.has('a')) dx -= 1;
+				if (heldKeys.has('d')) dx += 1;
+				return { dx, dy };
+			}
+
+			function gameLoop(frameTimeMs) {
+				const elapsedSeconds = (frameTimeMs - previousFrameTimeMs) / 1000;
+				previousFrameTimeMs = frameTimeMs;
+
+				const { dx, dy } = getMovementDirection();
+				if (dx !== 0 || dy !== 0) {
+					const directionLength = Math.hypot(dx, dy);
+					rancherX += (dx / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
+					rancherY += (dy / directionLength) * RANCHER_SPEED_PX_PER_SECOND * elapsedSeconds;
+				}
+
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				if (rancher.complete) {
+					ctx.drawImage(rancher, rancherX, rancherY);
+				}
+
+				requestAnimationFrame(gameLoop);
+			}
+
+			window.addEventListener('resize', resizeCanvas);
+			resizeCanvas();
+
+			window.addEventListener('keydown', event => {
+				const key = event.key.toLowerCase();
+				if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+					heldKeys.add(key);
+				}
+			});
+
+			window.addEventListener('keyup', event => {
+				heldKeys.delete(event.key.toLowerCase());
+			});
+
+			window.addEventListener('blur', () => {
+				heldKeys.clear();
+			});
+
+			rancher.onload = () => {
+				if (!rancherPositionInitialized) {
+					centerRancher();
+					rancherPositionInitialized = true;
+				}
+			};
+
+			if (rancher.complete) {
+				centerRancher();
+				rancherPositionInitialized = true;
+			}
+
+			requestAnimationFrame(gameLoop);
+		</script>
 	</body>
 </html>
