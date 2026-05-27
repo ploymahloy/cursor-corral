@@ -18,9 +18,66 @@
 				height: 100vh;
 				background-color: green;
 			}
+
+			#start-overlay {
+				position: fixed;
+				inset: 0;
+				z-index: 10;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 1.5rem;
+				background: transparent;
+			}
+
+			#start-overlay.hidden {
+				display: none;
+			}
+
+			#start-dialog {
+				max-width: 28rem;
+				padding: 1.75rem 2rem;
+				border-radius: 0.75rem;
+				background: #f5e6c8;
+				color: #2a1f0f;
+				box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+				text-align: center;
+			}
+
+			#start-message {
+				margin: 0 0 1.5rem;
+				font-family: system-ui, sans-serif;
+				font-size: 1.05rem;
+				line-height: 1.5;
+			}
+
+			#play-button {
+				padding: 0.65rem 2rem;
+				border: none;
+				border-radius: 0.5rem;
+				background: #3d6b2e;
+				color: #fff;
+				font-family: system-ui, sans-serif;
+				font-size: 1.1rem;
+				font-weight: 600;
+				cursor: pointer;
+			}
+
+			#play-button:hover {
+				background: #4a7f38;
+			}
 		</style>
 	</head>
 	<body>
+		<div id="start-overlay" role="dialog" aria-modal="true" aria-labelledby="start-message">
+			<div id="start-dialog">
+				<p id="start-message">
+					Thank you for playing Cursor Corral! Please allow ads so that I can afford to build more silly games like
+					this. Enjoy!
+				</p>
+				<button id="play-button" type="button" autofocus>Play</button>
+			</div>
+		</div>
 		<canvas id="canvas"></canvas>
 		<script src="game.js"></script>
 	</body>

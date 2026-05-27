@@ -40,7 +40,12 @@ cowMooStressedSound.preload = 'auto';
 const stepSound = new Audio('assets/mp3/step.mp3');
 stepSound.preload = 'auto';
 
+const backgroundMusic = new Audio('assets/mp3/loop.mp3');
+backgroundMusic.preload = 'auto';
+backgroundMusic.loop = true;
+
 // --- State ---
+let gameStarted = false;
 const heldKeys = new Set();
 
 let rancherX = 0;
@@ -64,6 +69,10 @@ canvas.style.cursor = LASSO_CURSOR;
 function playSound(audio) {
 	audio.currentTime = 0;
 	audio.play().catch(() => {});
+}
+
+function startBackgroundMusic() {
+	backgroundMusic.play().catch(() => {});
 }
 
 function playCowMooStressed() {
@@ -539,10 +548,16 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 canvas.addEventListener('click', event => {
+	if (!gameStarted) {
+		return;
+	}
 	startLassoThrow(event.offsetX, event.offsetY);
 });
 
 window.addEventListener('keydown', event => {
+	if (!gameStarted) {
+		return;
+	}
 	const key = event.key.toLowerCase();
 	if (MOVEMENT_KEYS.has(key)) {
 		heldKeys.add(key);
@@ -577,4 +592,12 @@ if (cowImage.complete) {
 	seedInitialCows();
 }
 
-requestAnimationFrame(gameLoop);
+const startOverlay = document.getElementById('start-overlay');
+const playButton = document.getElementById('play-button');
+
+playButton.addEventListener('click', () => {
+	startOverlay.classList.add('hidden');
+	gameStarted = true;
+	startBackgroundMusic();
+	requestAnimationFrame(gameLoop);
+});
