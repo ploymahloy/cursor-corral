@@ -494,8 +494,8 @@ function drawLasso() {
 	ctx.beginPath();
 	ctx.moveTo(originX, originY);
 	ctx.lineTo(endX, endY);
-	ctx.strokeStyle = '#6B4423';
-	ctx.lineWidth = 2;
+	ctx.strokeStyle = '#5b420b';
+	ctx.lineWidth = 3;
 	ctx.lineCap = 'round';
 	ctx.stroke();
 }
