@@ -113,14 +113,14 @@ function randomUnitDirection() {
 
 function getCowDimensions() {
 	return {
-		cowWidth: cowImage.width || 32,
-		cowHeight: cowImage.height || 32
+		cowWidth: cowImage.width || 48,
+		cowHeight: cowImage.height || 48
 	};
 }
 
 function createCow() {
-	const cowWidth = cowImage.width || 32;
-	const cowHeight = cowImage.height || 32;
+	const cowWidth = cowImage.width || 48;
+	const cowHeight = cowImage.height || 48;
 	const maxX = Math.max(0, canvas.width - cowWidth);
 	const maxY = Math.max(0, getCorralTopY() - cowHeight);
 	const { directionX, directionY } = randomUnitDirection();
