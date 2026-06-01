@@ -105,9 +105,20 @@ function getCorralTopY() {
 	return getFenceTopY() + getFenceHeight();
 }
 
+function getViewportSize() {
+	const vv = window.visualViewport;
+	return {
+		width: Math.round(vv?.width ?? window.innerWidth),
+		height: Math.round(vv?.height ?? window.innerHeight)
+	};
+}
+
 function resizeCanvas() {
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+	const { width, height } = getViewportSize();
+	canvas.width = width;
+	canvas.height = height;
+	canvas.style.width = `${width}px`;
+	canvas.style.height = `${height}px`;
 	clampCowsToZones();
 }
 
@@ -545,6 +556,8 @@ function gameLoop(frameTimeMs) {
 }
 
 window.addEventListener('resize', resizeCanvas);
+window.visualViewport?.addEventListener('resize', resizeCanvas);
+window.visualViewport?.addEventListener('scroll', resizeCanvas);
 resizeCanvas();
 
 canvas.addEventListener('click', event => {
