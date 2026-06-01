@@ -46,6 +46,7 @@ backgroundMusic.loop = true;
 
 // --- State ---
 let gameStarted = false;
+let gameWon = false;
 const heldKeys = new Set();
 
 let rancherX = 0;
@@ -157,6 +158,10 @@ function seedInitialCows() {
 	while (cows.length < COWS_COUNT) {
 		cows.push(createCow());
 	}
+}
+
+function allCowsCaptured() {
+	return cows.length >= COWS_COUNT && cows.every(cow => cow.captured);
 }
 
 function releaseCowToCorral(cow) {
@@ -427,6 +432,9 @@ function updateLasso(elapsedSeconds) {
 	if (lasso.elapsedMs >= getLassoRetractMs()) {
 		if (lasso.capturedCow) {
 			releaseCowToCorral(lasso.capturedCow);
+			if (!gameWon && allCowsCaptured()) {
+				showWinOverlay();
+			}
 			lasso.capturedCow = null;
 		}
 		lasso.phase = LASSO_PHASE.IDLE;
@@ -447,7 +455,7 @@ function updateCapturedCow() {
 }
 
 function startLassoThrow(targetX, targetY) {
-	if (lasso.phase !== LASSO_PHASE.IDLE) {
+	if (gameWon || lasso.phase !== LASSO_PHASE.IDLE) {
 		return;
 	}
 
@@ -522,10 +530,35 @@ function getMovementDirection() {
 	return { dx, dy };
 }
 
+// --- Win / reset ---
+function showWinOverlay() {
+	gameWon = true;
+	winOverlay.classList.remove('hidden');
+	playAgainButton.focus();
+}
+
+function resetGame() {
+	gameWon = false;
+	winOverlay.classList.add('hidden');
+	lasso.phase = LASSO_PHASE.IDLE;
+	lasso.capturedCow = null;
+	lasso.elapsedMs = 0;
+	canvas.style.cursor = LASSO_CURSOR;
+	cows.length = 0;
+	seedInitialCows();
+	heldKeys.clear();
+	centerRancher();
+}
+
 // --- Game loop ---
 function gameLoop(frameTimeMs) {
 	const elapsedSeconds = (frameTimeMs - previousFrameTimeMs) / 1000;
 	previousFrameTimeMs = frameTimeMs;
+
+	if (gameWon) {
+		requestAnimationFrame(gameLoop);
+		return;
+	}
 
 	if (lasso.phase === LASSO_PHASE.IDLE) {
 		const { dx, dy } = getMovementDirection();
@@ -561,14 +594,14 @@ window.visualViewport?.addEventListener('scroll', resizeCanvas);
 resizeCanvas();
 
 canvas.addEventListener('click', event => {
-	if (!gameStarted) {
+	if (!gameStarted || gameWon) {
 		return;
 	}
 	startLassoThrow(event.offsetX, event.offsetY);
 });
 
 window.addEventListener('keydown', event => {
-	if (!gameStarted) {
+	if (!gameStarted || gameWon) {
 		return;
 	}
 	const key = event.key.toLowerCase();
@@ -607,10 +640,16 @@ if (cowImage.complete) {
 
 const startOverlay = document.getElementById('start-overlay');
 const playButton = document.getElementById('play-button');
+const winOverlay = document.getElementById('win-overlay');
+const playAgainButton = document.getElementById('play-again-button');
 
 playButton.addEventListener('click', () => {
 	startOverlay.classList.add('hidden');
 	gameStarted = true;
 	startBackgroundMusic();
 	requestAnimationFrame(gameLoop);
+});
+
+playAgainButton.addEventListener('click', () => {
+	resetGame();
 });
