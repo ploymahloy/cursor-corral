@@ -69,6 +69,44 @@
 			.dialog-button:hover {
 				background: #4a7f38;
 			}
+
+			.joystick {
+				position: fixed;
+				left: 1.25rem;
+				bottom: max(1.25rem, env(safe-area-inset-bottom));
+				z-index: 5;
+				width: 120px;
+				height: 120px;
+				touch-action: none;
+			}
+
+			.joystick.hidden {
+				display: none;
+				pointer-events: none;
+			}
+
+			.joystick-base {
+				position: relative;
+				width: 100%;
+				height: 100%;
+				border: 2px solid #3d6b2e;
+				border-radius: 50%;
+				background: rgba(245, 230, 200, 0.45);
+			}
+
+			.joystick-stick {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 48px;
+				height: 48px;
+				margin-left: -24px;
+				margin-top: -24px;
+				border-radius: 50%;
+				background: #3d6b2e;
+				pointer-events: none;
+				transform: translate(0, 0);
+			}
 		</style>
 	</head>
 	<body>
@@ -76,8 +114,7 @@
 			<div class="game-dialog">
 				<p id="start-message" class="dialog-message">
 					Thank you for playing Cursor Corral! Please allow ads so that I can afford to build more silly games like
-					this. Use WASD or the virtual joystick to move your rancher. Click to throw your lasso. Enjoy!</p
-				>
+					this. Use WASD or the virtual joystick to move your rancher. Click to throw your lasso. Enjoy!</p>
 				<button id="play-button" class="dialog-button" type="button" autofocus>Play</button>
 			</div>
 		</div>
@@ -88,6 +125,11 @@
 			</div>
 		</div>
 		<canvas id="canvas"></canvas>
+		<div id="joystick" class="joystick hidden" aria-hidden="true">
+			<div class="joystick-base">
+				<div class="joystick-stick"></div>
+			</div>
+		</div>
 		<script src="game.js"></script>
 	</body>
 </html>

@@ -16,6 +16,8 @@ const LASSO_PHASE = {
 };
 
 const MOVEMENT_KEYS = new Set(['w', 'a', 's', 'd']);
+const JOYSTICK_RADIUS_PX = 50;
+const JOYSTICK_DEAD_ZONE = 0.15;
 
 // --- Canvas ---
 const canvas = document.getElementById('canvas');
@@ -53,6 +55,8 @@ backgroundMusic.loop = true;
 let gameStarted = false;
 let gameWon = false;
 const heldKeys = new Set();
+let joystickDx = 0;
+let joystickDy = 0;
 
 let rancherX = 0;
 let rancherY = 0;
@@ -532,6 +536,78 @@ function drawLasso() {
 }
 
 // --- Input ---
+const joystickEl = document.getElementById('joystick');
+const joystickBase = joystickEl.querySelector('.joystick-base');
+const joystickStick = joystickEl.querySelector('.joystick-stick');
+
+function isJoystickEnabled() {
+	return (
+		window.matchMedia('(pointer: coarse)').matches ||
+		window.matchMedia('(max-width: 899px)').matches
+	);
+}
+
+function resetJoystick() {
+	joystickDx = 0;
+	joystickDy = 0;
+	joystickStick.style.transform = 'translate(0px, 0px)';
+}
+
+function updateJoystickVisibility() {
+	if (isJoystickEnabled()) {
+		joystickEl.classList.remove('hidden');
+		joystickEl.setAttribute('aria-hidden', 'false');
+	} else {
+		joystickEl.classList.add('hidden');
+		joystickEl.setAttribute('aria-hidden', 'true');
+		resetJoystick();
+	}
+}
+
+function updateJoystickFromPointer(clientX, clientY) {
+	const rect = joystickBase.getBoundingClientRect();
+	const centerX = rect.left + rect.width / 2;
+	const centerY = rect.top + rect.height / 2;
+	let offsetX = clientX - centerX;
+	let offsetY = clientY - centerY;
+	const distance = Math.hypot(offsetX, offsetY);
+	if (distance > JOYSTICK_RADIUS_PX) {
+		const scale = JOYSTICK_RADIUS_PX / distance;
+		offsetX *= scale;
+		offsetY *= scale;
+	}
+	joystickStick.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+	joystickDx = offsetX / JOYSTICK_RADIUS_PX;
+	joystickDy = offsetY / JOYSTICK_RADIUS_PX;
+}
+
+function releaseJoystickPointer(event) {
+	if (joystickEl.hasPointerCapture(event.pointerId)) {
+		joystickEl.releasePointerCapture(event.pointerId);
+	}
+	resetJoystick();
+}
+
+joystickEl.addEventListener('pointerdown', event => {
+	if (!isJoystickEnabled() || !gameStarted || gameWon) {
+		return;
+	}
+	event.preventDefault();
+	joystickEl.setPointerCapture(event.pointerId);
+	updateJoystickFromPointer(event.clientX, event.clientY);
+});
+
+joystickEl.addEventListener('pointermove', event => {
+	if (!joystickEl.hasPointerCapture(event.pointerId)) {
+		return;
+	}
+	updateJoystickFromPointer(event.clientX, event.clientY);
+});
+
+joystickEl.addEventListener('pointerup', releaseJoystickPointer);
+joystickEl.addEventListener('pointercancel', releaseJoystickPointer);
+joystickEl.addEventListener('lostpointercapture', resetJoystick);
+
 function getMovementDirection() {
 	let dx = 0;
 	let dy = 0;
@@ -539,6 +615,15 @@ function getMovementDirection() {
 	if (heldKeys.has('s')) dy += 1;
 	if (heldKeys.has('a')) dx -= 1;
 	if (heldKeys.has('d')) dx += 1;
+
+	const joystickLength = Math.hypot(joystickDx, joystickDy);
+	if (joystickLength > JOYSTICK_DEAD_ZONE) {
+		return {
+			dx: joystickDx / joystickLength,
+			dy: joystickDy / joystickLength
+		};
+	}
+
 	return { dx, dy };
 }
 
@@ -559,6 +644,7 @@ function resetGame() {
 	cows.length = 0;
 	seedInitialCows();
 	heldKeys.clear();
+	resetJoystick();
 	centerRancher();
 }
 
@@ -600,10 +686,16 @@ function gameLoop(frameTimeMs) {
 	requestAnimationFrame(gameLoop);
 }
 
-window.addEventListener('resize', resizeCanvas);
-window.visualViewport?.addEventListener('resize', resizeCanvas);
-window.visualViewport?.addEventListener('scroll', resizeCanvas);
+function onViewportChange() {
+	resizeCanvas();
+	updateJoystickVisibility();
+}
+
+window.addEventListener('resize', onViewportChange);
+window.visualViewport?.addEventListener('resize', onViewportChange);
+window.visualViewport?.addEventListener('scroll', onViewportChange);
 resizeCanvas();
+updateJoystickVisibility();
 
 canvas.addEventListener('click', event => {
 	if (!gameStarted || gameWon) {
@@ -628,6 +720,7 @@ window.addEventListener('keyup', event => {
 
 window.addEventListener('blur', () => {
 	heldKeys.clear();
+	resetJoystick();
 });
 
 rancher.onload = () => {
