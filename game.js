@@ -124,6 +124,12 @@ function getCorralTopY() {
 
 function getViewportSize() {
 	const vv = window.visualViewport;
+	if (vv && vv.scale !== 1) {
+		return {
+			width: canvas.width || Math.round(window.innerWidth),
+			height: canvas.height || Math.round(window.innerHeight)
+		};
+	}
 	return {
 		width: Math.round(vv?.width ?? window.innerWidth),
 		height: Math.round(vv?.height ?? window.innerHeight)
@@ -131,6 +137,9 @@ function getViewportSize() {
 }
 
 function resizeCanvas() {
+	if (window.visualViewport?.scale !== 1) {
+		return;
+	}
 	const { width, height } = getViewportSize();
 	canvas.width = width;
 	canvas.height = height;
@@ -691,9 +700,22 @@ function onViewportChange() {
 	updateJoystickVisibility();
 }
 
+function preventPageScrollZoomAndPan(event) {
+	event.preventDefault();
+}
+
+document.addEventListener('touchmove', preventPageScrollZoomAndPan, { passive: false });
+window.addEventListener('wheel', event => {
+	if (event.ctrlKey) {
+		event.preventDefault();
+	}
+}, { passive: false });
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+	window.addEventListener(type, preventPageScrollZoomAndPan);
+}
+
 window.addEventListener('resize', onViewportChange);
 window.visualViewport?.addEventListener('resize', onViewportChange);
-window.visualViewport?.addEventListener('scroll', onViewportChange);
 resizeCanvas();
 updateJoystickVisibility();
 
@@ -705,6 +727,9 @@ canvas.addEventListener('click', event => {
 });
 
 window.addEventListener('keydown', event => {
+	if ((event.ctrlKey || event.metaKey) && ['+', '-', '=', '0'].includes(event.key)) {
+		event.preventDefault();
+	}
 	if (!gameStarted || gameWon) {
 		return;
 	}
