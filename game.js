@@ -34,8 +34,11 @@ fenceImage.src = 'assets/png/fence.png';
 const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
 lassoThrowSound.preload = 'auto';
 
-const cowMooStressedSound = new Audio('assets/mp3/cow_moo_stressed.mp3');
-cowMooStressedSound.preload = 'auto';
+const cowMooSounds = ['moo_bass', 'moo_alto', 'moo_tenor', 'moo_soprano'].map((name) => {
+	const audio = new Audio(`assets/mp3/${name}.mp3`);
+	audio.preload = 'auto';
+	return audio;
+});
 
 const stepSound = new Audio('assets/mp3/step.mp3');
 stepSound.preload = 'auto';
@@ -77,7 +80,8 @@ function startBackgroundMusic() {
 }
 
 function playCowMooStressed() {
-	playSound(cowMooStressedSound);
+	const audio = cowMooSounds[Math.floor(Math.random() * cowMooSounds.length)];
+	playSound(audio);
 }
 
 function updateStepSounds(elapsedSeconds, isMoving) {
