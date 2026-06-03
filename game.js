@@ -69,6 +69,12 @@ const lasso = {
 
 canvas.style.cursor = LASSO_CURSOR;
 
+function getRandomInt(min, max) {
+	const buf = new Uint32Array(1);
+	crypto.getRandomValues(buf);
+	return min + (buf[0] % (max - min));
+}
+
 // --- Audio ---
 function playSound(audio) {
 	audio.currentTime = 0;
@@ -80,7 +86,7 @@ function startBackgroundMusic() {
 }
 
 function playCowMooStressed() {
-	const audio = cowMooSounds[Math.floor(Math.random() * cowMooSounds.length)];
+	const audio = cowMooSounds[getRandomInt(0, cowMooSounds.length)];
 	playSound(audio);
 }
 
