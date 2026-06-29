@@ -36,13 +36,12 @@ fenceImage.src = 'assets/png/fence.png';
 const lassoThrowSound = new Audio('assets/mp3/lasso_throw.mp3');
 lassoThrowSound.preload = 'auto';
 
-const cowMooSoundSrcs = ['moo_bass', 'moo_alto', 'moo_tenor', 'moo_soprano'].map(
-	(name) => `assets/mp3/${name}.mp3`
-);
-for (const src of cowMooSoundSrcs) {
-	const audio = new Audio(src);
-	audio.preload = 'auto';
-}
+const MOO_SOUND_SRC = 'assets/mp3/moo.mp3';
+const MOO_PITCH_RANGE_CENTS = 100;
+
+let audioContext = null;
+let cowMooBuffer = null;
+let lastMooPitchCents = null;
 
 const stepSound = new Audio('assets/mp3/step.mp3');
 stepSound.preload = 'auto';
@@ -91,9 +90,68 @@ function startBackgroundMusic() {
 	backgroundMusic.play().catch(() => {});
 }
 
-function playCowMooStressed() {
-	const audio = new Audio(cowMooSoundSrcs[getRandomInt(0, cowMooSoundSrcs.length)]);
-	audio.play().catch(() => {});
+async function loadCowMooSound() {
+	audioContext = new AudioContext();
+	const response = await fetch(MOO_SOUND_SRC);
+	const arrayBuffer = await response.arrayBuffer();
+	cowMooBuffer = await audioContext.decodeAudioData(arrayBuffer);
+}
+
+loadCowMooSound().catch(() => {});
+
+function randomNonZeroPitchCents() {
+	const magnitude = getRandomInt(1, MOO_PITCH_RANGE_CENTS + 1);
+	const sign = getRandomInt(0, 2) === 0 ? -1 : 1;
+	return sign * magnitude;
+}
+
+function shuffleInPlace(arr) {
+	for (let i = arr.length - 1; i > 0; i--) {
+		const j = getRandomInt(0, i + 1);
+		[arr[i], arr[j]] = [arr[j], arr[i]];
+	}
+}
+
+function assignCowMooPitches() {
+	const originalCount = Math.floor(cows.length / 2);
+	const pitches = Array(originalCount).fill(0);
+	for (let i = originalCount; i < cows.length; i++) {
+		pitches.push(randomNonZeroPitchCents());
+	}
+	shuffleInPlace(pitches);
+	for (let i = 0; i < cows.length; i++) {
+		cows[i].mooPitchCents = pitches[i];
+	}
+}
+
+function resolvePlaybackPitchCents(cow) {
+	let cents = cow.mooPitchCents;
+	if (cents === lastMooPitchCents) {
+		if (cents === 0) {
+			cents = getRandomInt(0, 2) === 0 ? -1 : 1;
+		} else if (cents > 0) {
+			cents = Math.max(1, cents - 1);
+		} else {
+			cents = Math.min(-1, cents + 1);
+		}
+	}
+	lastMooPitchCents = cents;
+	return cents;
+}
+
+function playCowMooStressed(cow) {
+	if (!audioContext || !cowMooBuffer) {
+		return;
+	}
+	if (audioContext.state === 'suspended') {
+		audioContext.resume().catch(() => {});
+	}
+	const cents = resolvePlaybackPitchCents(cow);
+	const source = audioContext.createBufferSource();
+	source.buffer = cowMooBuffer;
+	source.playbackRate.value = Math.pow(2, cents / 1200);
+	source.connect(audioContext.destination);
+	source.start();
 }
 
 function updateStepSounds(elapsedSeconds, isMoving) {
@@ -183,6 +241,7 @@ function seedInitialCows() {
 	while (cows.length < COWS_COUNT) {
 		cows.push(createCow());
 	}
+	assignCowMooPitches();
 }
 
 function allCowsCaptured() {
@@ -378,7 +437,7 @@ function getLassoRetractMs() {
 
 function captureCow(cow) {
 	lasso.capturedCow = cow;
-	playCowMooStressed();
+	playCowMooStressed(cow);
 }
 
 function getLassoAnimationT() {
@@ -650,6 +709,7 @@ function resetGame() {
 	lasso.capturedCow = null;
 	lasso.elapsedMs = 0;
 	canvas.style.cursor = LASSO_CURSOR;
+	lastMooPitchCents = null;
 	cows.length = 0;
 	seedInitialCows();
 	heldKeys.clear();
@@ -777,6 +837,9 @@ playButton.addEventListener('click', () => {
 	startOverlay.classList.add('hidden');
 	gameStarted = true;
 	startBackgroundMusic();
+	if (audioContext?.state === 'suspended') {
+		audioContext.resume().catch(() => {});
+	}
 	requestAnimationFrame(gameLoop);
 });
 
